@@ -17,5 +17,5 @@ build/
 
 .env
 
-files/
-.gitignore
+files_in/
+files_out/
