@@ -14,29 +14,32 @@ openai.api_key = config['OPENAI_API_KEY']
 file_in = sys.argv[1]
 df_in = pd.read_csv(file_in)
 df = df_in.replace(',|\"|\'|;|:|\.|!|/','', regex=True)
+df_len = str(len(df))
 
 
 # Write the prompt for the sentiment analysis function, using the entire csv file at once
 # Send the prompt to the chat bot and record the response to the 'sentiment' list
-# prompt = """In one word, does each sentence in the following list have a positive or negative sentiment. 
-#             The list has """ + str(len(df)) + """ sentences, so there should be exactly """ + str(len(df)) + """ words. 
-#             Output should be a comma seperated list: \n""" + df.to_csv(index=False, header=False)
-# response = openai.ChatCompletion.create(
-#         model="gpt-3.5-turbo",
-#         messages=[
-#             {"role": "user", "content": prompt},
-#         ],
-#         temperature=0.5,
-#     )
-# sentiment = response['choices'][0]['message']['content']
-# sentiment = sentiment.split(', ')
+prompt = """In one word, does each sentence in the following list have a positive or negative sentiment. 
+            The list has {} sentences, so there should be exactly {} words. 
+            Output should be a comma seperated list: \n""".format(df_len, df_len) + df.to_csv(index=False, header=False)
+response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.5,
+    )
+sentiment = response['choices'][0]['message']['content']
+sentiment = sentiment.split(', ')
 
 
 # Write the prompt for the themes analysis function, using the entire csv file at once
 # Send the prompt to the chat bot and record the response to the 'themes' list
-prompt = """Give the three most common themes for each sentence in the list below, without using a word in that sentence. 
-            The list has """ + str(len(df)) + """ sentences, so there should be exactly """ + str(len(df)) + """ set of themes. Do not output more or less than """ + str(len(df)) + """ rows. 
-            Output should be a comma seperated list with exactly three comma seperated themes per row: \n""" + df.to_csv(index=False, header=False)
+prompt = """Give the three most common themes in one word for each of the {} sentences in the list below.
+            You should output exactly {} sets of themes. Do not output more or less than {} rows. 
+            Output should be a comma seperated list with exactly three comma seperated themes per row. Follow your instructions exactly: 
+            \n""".format(df_len, df_len, df_len) + df.to_csv(index=False, header=False)
+print(prompt)
 response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -87,6 +90,7 @@ for t in themes:
     split += [t.split('\n')]
 
 print(split)
+print(len(split[0]))
 theme1, theme2, theme3 = [], [], []
 for s in split:
     for t in s:
@@ -99,7 +103,7 @@ print(theme1, '\n', theme2, '\n', theme3, '\n')
 print(len(theme1), '\n', len(theme2), '\n', len(theme3), '\n')
 
 # Save the responses to the pandas dataframe and save the dataframe as a csv file in the files out folder with the same name as the input file
-# df['Sentiment'] = sentiment
+df['Sentiment'] = sentiment
 df['Theme 1'] = theme1
 df['Theme 2'] = theme2
 df['Theme 3'] = theme3
