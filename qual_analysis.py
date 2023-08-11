@@ -13,24 +13,40 @@ openai.api_key = config['OPENAI_API_KEY']
 # Fetch the file to be operated on from the command line and convert it into a pandas dataframe
 file_in = sys.argv[1]
 df_in = pd.read_csv(file_in)
-df = df_in.replace(',|\"|\'|;|:|\.','', regex=True)
-print(df.to_csv())
-prompt = "In one word, is each sentence in the following file positive or negative: \n" + df.to_csv(index=False, header=False)
+df = df_in.replace(',|\"|\'|;|:|\.|!|/','', regex=True)
+
+
+# Write the prompt for the sentiment analysis function, using the entire csv file at once
+# Send the prompt to the chat bot and record the response to the 'sentiment' list
+# prompt = """In one word, does each sentence in the following list have a positive or negative sentiment. 
+#             The list has """ + str(len(df)) + """ sentences, so there should be exactly """ + str(len(df)) + """ words. 
+#             Output should be a comma seperated list: \n""" + df.to_csv(index=False, header=False)
+# response = openai.ChatCompletion.create(
+#         model="gpt-3.5-turbo",
+#         messages=[
+#             {"role": "user", "content": prompt},
+#         ],
+#         temperature=0.5,
+#     )
+# sentiment = response['choices'][0]['message']['content']
+# sentiment = sentiment.split(', ')
+
+
+# Write the prompt for the themes analysis function, using the entire csv file at once
+# Send the prompt to the chat bot and record the response to the 'themes' list
+prompt = """Give the three most common themes for each sentence in the list below, without using a word in that sentence. 
+            The list has """ + str(len(df)) + """ sentences, so there should be exactly """ + str(len(df)) + """ set of themes. Do not output more or less than """ + str(len(df)) + """ rows. 
+            Output should be a comma seperated list with exactly three comma seperated themes per row: \n""" + df.to_csv(index=False, header=False)
 response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "user", "content": prompt},
         ],
         temperature=0.5,
-        # max_tokens=128
     )
-print(response['choices'][0]['message']['content'])
-responses = response['choices'][0]['message']['content']
-# responses = "positive, positive, negative, positive, positive, positive, positive, positive, positive, positive, positive, positive, positive, positive, positive, positive, positive, positive, positive, positive, positive, positive"
-print(responses)
-responses = responses.split(', ')
-print(responses)
-print(len(responses))
+themes = [response['choices'][0]['message']['content']]
+print(themes)
+
 # # Create an empty list to store responses in and iterate over ever row in the inputted csv file
 # sentiment = []
 # for row in df.itertuples():
@@ -46,7 +62,7 @@ print(len(responses))
 #         # max_tokens=128
 #     )
 #     sentiment += [response['choices'][0]['message']['content']]
-sentiment = ['positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive']
+# sentiment = ['positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive']
 
 # # Create an empty list to store responses in and iterate over ever row in the inputted csv file
 # themes = []
@@ -63,21 +79,27 @@ sentiment = ['positive', 'positive', 'positive', 'positive', 'positive', 'positi
 #         # max_tokens=128
 #     )
 #     themes += [response['choices'][0]['message']['content']]
-themes = ['projects, success, rewarding', 'Seeing, results, charitable', 'difficult, favorite, experience', 'receiving, donating, understanding', 'Giving, lump sum, church', 'comfort, knowing, helping', 'think, updates, rewarding', 'friendship, generosity, alternative', 'charitable experience, donation, opportunity', 'favorite experience, supporting, meeting', 'favorite, Friends of Kids with Cancer, organization', 'charitable giving, Christmas drive, underprivileged children', 'sponsorship, meaningful, impact', 'Celebration, Giving, Involvement', 'honoring, special, fulfilling', 'love, giving, impact', 'charities, recipients, donations', 'favorite, charitable, giving', 'enjoyment, donations, well-building', 'fundraiser, celebration, donation', 'Providing, Christmas, toys', 'Feeling, helping, judgment', 'favorite, ALS research, example']
+
 
 # Reformat the data retrieved from the themes prompt into a format suitable for the dataframe
 split = []
 for t in themes:
-    split += [t.split(', ')]
+    split += [t.split('\n')]
 
+print(split)
 theme1, theme2, theme3 = [], [], []
 for s in split:
-    theme1 += [s[0]]
-    theme2 += [s[1]]
-    theme3 += [s[2]]
+    for t in s:
+        print(t)
+        t = t.split(', ')
+        theme1 += [t[0]]
+        theme2 += [t[1]]
+        theme3 += [t[2]]
+print(theme1, '\n', theme2, '\n', theme3, '\n')
+print(len(theme1), '\n', len(theme2), '\n', len(theme3), '\n')
 
 # Save the responses to the pandas dataframe and save the dataframe as a csv file in the files out folder with the same name as the input file
-df['Sentiment'] = sentiment
+# df['Sentiment'] = sentiment
 df['Theme 1'] = theme1
 df['Theme 2'] = theme2
 df['Theme 3'] = theme3
