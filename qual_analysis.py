@@ -68,11 +68,10 @@ for df in dfs:
         # Write the prompt for the themes analysis function, using the entire csv file at once
         # Send the prompt to the chat bot and record the response to the 'themes' list
         prompt = """Give the three most common themes in one word for each of the {} sentences in the list below.
-                    Sentences are delimited by new lines.
-                    Do not output any words that are in this list: {}.
+                    Sentences are delimited by new lines. Even if a sentence is short, output exactly three themes.
                     You should output exactly {} sets of themes. Do not output more or less than {} rows.
                     Output should be a comma seperated list with exactly three comma seperated themes per row. Follow your instructions exactly: 
-                    \n""".format(df_init_len, ignore, df_init_len, df_init_len) + df_init.to_csv(index=False, header=False)
+                    \n""".format(df_init_len, df_init_len, df_init_len) + df_init.to_csv(index=False, header=False)
         response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -121,10 +120,15 @@ df_out = pd.DataFrame()
 while len(dfs_out) != 0:
     df_out = pd.concat([df_out, dfs_out.pop()])
 df_out = df_out.sort_index()
+head = [list(df_out.columns)[0]]
+headers = list(df_out.columns)[1:]
+headers.sort()
+headers = head + headers
+df_out = df_out[headers]
+
 
 
 # Find the percentage of responses that share a sentiment value and add those percentage to the dataframe
-headers = list(df_out.columns)
 sum_sent = []
 df_sent = pd.DataFrame()
 for head in headers:
