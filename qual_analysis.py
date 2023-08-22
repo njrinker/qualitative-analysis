@@ -19,13 +19,13 @@ ignore = ['favorite', 'charitable', 'giving', 'gift', 'positive']
 file_in = sys.argv[1]
 iter_num = int(sys.argv[2])
 df_in = pd.read_csv(file_in)
-df = df_in.replace(',|\"|\'|;|:|\.|!|/','', regex=True)
+df = df_in.replace(',|\"|\'|;|:|\.|!|/|’|\(|\)|[|]','', regex=True)
 print("File and command line arguments fetched")
 
 
 # Remove all strings less than 100 characters from the dataframe and put those strings into their own
-df_short = df.loc[df[df.columns[0]].str.len()<100]
-df = df.loc[df[df.columns[0]].str.len()>=100]
+df_short = df.loc[df[df.columns[0]].str.len()<150]
+df = df.loc[df[df.columns[0]].str.len()>=150]
 
 
 # Remove all strings more than 500 characters from the dataframe and put those strings into their own
@@ -33,16 +33,29 @@ df_long = df.loc[df[df.columns[0]].str.len()>500]
 df = df.loc[df[df.columns[0]].str.len()<=500]
 
 
-# Split the dataframe into smaller sized dataframes, if the initial dataframe is too large
+# Split the dataframes into smaller sized dataframes, if the initial dataframe is too large
 df_len = len(df)
 if df_len > 10:
      dfs = np.array_split(df, -(df_len//-10), axis=0)
 else:
     dfs = [df]
-if len(df_short) > 0:
+
+df_short_len = len(df_short)
+if df_short_len > 10:
+    dfs_short = np.array_split(df_short, -(df_short_len//-10), axis=0)
+    for short in dfs_short:
+        dfs.append(short)
+elif 0 < df_short_len <= 10:
     dfs.append(df_short)
-if len(df_long) > 0:
+
+df_long_len = len(df_long)
+if df_long_len > 10:
+    dfs_long = np.array_split(df_long, -(df_long_len//-10), axis=0)
+    for long in dfs_long:
+        dfs.append(long)
+elif 0 < df_long_len <= 10:
     dfs.append(df_long)
+
 dfs_out = []
 print("Input data parsed and formatted for processing")
 
@@ -53,7 +66,7 @@ for df in dfs:
     df_init_len = str(len(df_init))
     sent_num, them_num, file_num = 1, 1, 1
     for x in range(iter_num):
-        print("Starting iteration " + str(iter_num))
+        print("Starting iteration " + str(x))
         try:
             # Write the prompt for the sentiment analysis function, using the entire csv file at once
             # Send the prompt to the chat bot and record the response to the 'sentiment' list
@@ -69,12 +82,7 @@ for df in dfs:
                 )
             sentiment = response['choices'][0]['message']['content'].split(',')
             sentiment = [s.strip(' ') for s in sentiment]
-
-            # sentiment = ['positive', 'positive', 'negative', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive']
-            # sentiment = ['positive', 'positive', 'negative', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive']
-            # if not len(df) == len(sentiment):
-                # sentiment = ['positive', 'positive', 'negative', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive', 'positive']
-            
+    
             
             # Save the responses to the pandas dataframe
             while 'Sentiment {}'.format(sent_num) in df.columns:
@@ -97,12 +105,6 @@ for df in dfs:
                     temperature=0.5,
                 )
             themes = [response['choices'][0]['message']['content']]
-            
-            
-            # themes = ["successful, positive, rewarding\ncharitable, giving, results\nfavorite, experience, pleasant\nChristmas cards, donation, website\nlump sum, ministry, church\ncomfort, helping, less fortunate\nupdates, rewarding, pediatric oncology\nlocal homeless shelter, meaningful, gift\nexperiences, education, denied\nsupporting a child, mission trip, favorite\nFriends of Kids with Cancer, gift cards, support\nChristmas drive, underprivileged children, wrap presents\nsponsorship, World Vision, meaningful\nFoster kid party, Santa, crafts\nplayground, special needs children, fulfilling\ngiving, personal impact, love\nHope House, Nspire, homeless women and children\nsalvation army, financial support, Christmas\nAfrican Well Fund, builds wells, tangible need\nlibrary's fundraiser, dressed up, celebrate reading\nChristmas toys, low income communities, children\nhelping others, important, without knowing\nALS research, best friend, courage"]
-            # themes = ["successful, positive, rewarding\ncharitable, giving, results\nfavorite, experience, pleasant\nChristmas cards, donation, website\nlump sum, ministry, church\ncomfort, helping, less fortunate\nupdates, rewarding, pediatric oncology\nlocal homeless shelter, meaningful, gift\nexperiences, education, denied\nsupporting a child, mission trip, favorite\nFriends of Kids with Cancer, gift cards, support"]
-            # if len(df) == 12:
-            #     themes = ["successful, positive, rewarding\ncharitable, giving, results\nfavorite, experience, pleasant\nChristmas cards, donation, website\nlump sum, ministry, church\ncomfort, helping, less fortunate\nupdates, rewarding, pediatric oncology\nlocal homeless shelter, meaningful, gift\nexperiences, education, denied\nsupporting a child, mission trip, favorite\nFriends of Kids with Cancer, gift cards, support\nChristmas drive, underprivileged children, wrap presents"]
             
 
             # Reformat the data retrieved from the themes prompt into a format suitable for the dataframe
@@ -132,6 +134,9 @@ for df in dfs:
             df['Theme {}'.format(them_num)] = theme3
             print("Finished theme analysis for rows " + str(df.index.values))
             pass
+
+
+        # If the AI returns malformed data that is unusable, catch the error and move on
         except ValueError:
             print("\nValueError exception for dataframe containing rows \n" + str(df.index.values) + "\n")
             continue
@@ -165,7 +170,6 @@ response = openai.ChatCompletion.create(
         temperature=0.5,
     )
 summary = [response['choices'][0]['message']['content']]
-# summary = ['The charities supported by the respondents in the csv file perform a wide range of work. Some of the common themes include providing support to the homeless, supporting healthcare organizations, helping children in need, and supporting educational institutions. The overall sentiment towards the work performed by these charities is positive, with respondents expressing feelings of fulfillment, reward, and satisfaction. However, there are also mentions of negative sentiment, particularly in relation to the lack of support for certain causes or organizations.']
 
 
 # Save the responses to the pandas dataframe 
