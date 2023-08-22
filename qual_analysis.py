@@ -49,11 +49,11 @@ elif 0 < df_short_len <= 10:
     dfs.append(df_short)
 
 df_long_len = len(df_long)
-if df_long_len > 10:
-    dfs_long = np.array_split(df_long, -(df_long_len//-10), axis=0)
+if df_long_len > 5:
+    dfs_long = np.array_split(df_long, -(df_long_len//-5), axis=0)
     for long in dfs_long:
         dfs.append(long)
-elif 0 < df_long_len <= 10:
+elif 0 < df_long_len <= 5:
     dfs.append(df_long)
 
 dfs_out = []
