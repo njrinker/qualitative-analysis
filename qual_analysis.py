@@ -17,8 +17,18 @@ ignore = ['favorite', 'charitable', 'giving', 'gift', 'positive']
 
 # Fetch the file to be operated on from the command line and convert it into a pandas dataframe
 file_in = sys.argv[1]
+file_name = os.path.basename(file_in)
+file = os.path.splitext(file_name)
+path = os.path.normpath(file_in).split(os.path.sep)
+if file[1] != '.csv':
+    raise Exception('Input file must be a .csv file')
 iter_num = int(sys.argv[2])
+if iter_num <= 0:
+    raise Exception("Number of runs to perform must be greater than 0")
+if iter_num > 10:
+    raise Exception("Number of runs to perform must be less than or equal to 10")
 df_in = pd.read_csv(file_in)
+df_in = df_in.iloc[:, :1]
 df = df_in.replace(',|\"|\'|;|:|\.|!|/|’|\(|\)|[|]','', regex=True)
 print("File and command line arguments fetched")
 
@@ -66,7 +76,7 @@ for df in dfs:
     df_init_len = str(len(df_init))
     sent_num, them_num, file_num = 1, 1, 1
     for x in range(iter_num):
-        print("Starting iteration " + str(x))
+        print("Starting iteration " + str(x+1))
         try:
             # Write the prompt for the sentiment analysis function, using the entire csv file at once
             # Send the prompt to the chat bot and record the response to the 'sentiment' list
@@ -82,6 +92,7 @@ for df in dfs:
                 )
             sentiment = response['choices'][0]['message']['content'].split(',')
             sentiment = [s.strip(' ') for s in sentiment]
+            sentiment = [x.lower() for x in sentiment]
     
             
             # Save the responses to the pandas dataframe
@@ -116,7 +127,8 @@ for df in dfs:
                 for t in s:
                     t = t.split(',')
                     t = [s.strip(' ') for s in t]
-                    ts = ['None', 'None', 'None']
+                    t = [x.lower() for x in t]
+                    ts = ['none', 'none', 'none']
                     for i in range(len(t)):
                         ts[i] = t[i]
                     theme1 += [ts[0]]
@@ -132,7 +144,6 @@ for df in dfs:
             df['Theme {}'.format(them_num)] = theme2
             them_num += 1
             df['Theme {}'.format(them_num)] = theme3
-            print("Finished theme analysis for rows " + str(df.index.values))
             pass
 
 
@@ -204,10 +215,13 @@ print("Statistical analysis of theme analysis responses completed")
 
 
 # Save the dataframe as a csv file in a subfolder of the files out folder with the same name as the input file
-if not os.path.exists('files_out\\' + file_in[9:-4]):
-    os.mkdir('files_out\\' + file_in[9:-4])
-while os.path.exists('files_out\\' + file_in[9:-4] + '\\' + file_in[9:-4] + ' v' + str(file_num) + '.csv'):
-        file_num += 1
-file_out = 'files_out\\' + file_in[9:-4] + '\\' + file_in[9:-4] + ' v' + str(file_num) + '.csv'
+if not os.path.exists('files_out\\' + path[1]):
+    os.mkdir('files_out\\' + path[1])
+if not os.path.exists('files_out\\' + path[1] + '\\' + file[0]):
+    os.mkdir('files_out\\' + path[1] + '\\' + file[0])
+while os.path.exists('files_out\\' + path[1] + '\\' + file[0] + '\\' + file[0] + ' v' + str(file_num) + '.csv'):
+    file_num += 1
+file_out = 'files_out\\' + path[1] + '\\' + file[0] + '\\' + file[0] + ' v' + str(file_num) + '.csv'
+df_out.iloc[:, :1] = df_in.iloc[:, :1]
 df_out.to_csv(file_out)
-print("Run completed")
+print("Run completed, output saved to " + file_out)
