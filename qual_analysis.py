@@ -13,9 +13,6 @@ config = dotenv.dotenv_values(".env")
 openai.api_key = config['OPENAI_API_KEY']
 
 
-# List of keywords we want the AI to not output
-ignore = ['favorite', 'charitable', 'giving', 'gift', 'positive']
-
 # Fetch the file to be operated on from the command line and convert it into a pandas dataframe
 file_in = sys.argv[1]
 file_name = os.path.basename(file_in)
@@ -130,6 +127,8 @@ for df in dfs:
                     t = [s.strip(' ') for s in t]
                     t = [x.lower() for x in t]
                     ts = ['none', 'none', 'none']
+                    if len(t) > 3:
+                        break
                     for i in range(len(t)):
                         ts[i] = t[i]
                     theme1 += [ts[0]]
