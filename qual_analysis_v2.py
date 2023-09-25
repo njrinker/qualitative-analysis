@@ -67,8 +67,10 @@ for f, name in files_in:
     file_len = len(file)
     if file_len > 10:
          files = np.array_split(file, -(file_len//-10), axis=0)
-    else:
+    elif file_len > 0:
         files = [file]
+    else:
+        file = []
 
     file_short_len = len(file_short)
     if file_short_len > 10:

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import sys
-import csv
 import pandas as pd
 
 def main():
@@ -35,7 +34,7 @@ def main():
             print("Wrote file to: " + 'files_in\\' + path[1] + '\\' + file[0] + '\\' + file[0] + ' ' + str(num) + '.csv')
 
     # Open the input file and initialize variables
-    with open(file_in, 'r') as f_in:
+    with open(file_in, 'r', errors='ignore') as f_in:
         print("Splitting files")
         count = 0
         rs = []

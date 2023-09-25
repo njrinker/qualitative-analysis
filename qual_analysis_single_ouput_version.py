@@ -35,8 +35,10 @@ df = df.loc[df[df.columns[0]].str.len()<=500]
 df_len = len(df)
 if df_len > 10:
      dfs = np.array_split(df, -(df_len//-10), axis=0)
-else:
+elif df_len > 0:
     dfs = [df]
+else:
+    dfs = []
 if len(df_short) > 0:
     dfs.append(df_short)
 if len(df_long) > 0:
