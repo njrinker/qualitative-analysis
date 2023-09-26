@@ -13,6 +13,9 @@ def main():
     openai.api_key = config['OPENAI_API_KEY']
     
     
+    tries = 3
+
+
     # Fetch the folder to be operated on from the command line and convert it into a pandas dataframe
     folder_in = sys.argv[1]
     path = os.path.normpath(folder_in).split(os.path.sep)
@@ -47,21 +50,39 @@ def main():
     print("Summaries extracted and consolidated to one dataframe")
 
 
-    # Write the prompt for the summary function, using the entire csv file at once
-    # Send the prompt to the chat bot and record the response to the 'summary' list
-    prompt = """Write a paragraph that summarizes the individual summaries in the following csv file. 
-                """ + df.to_csv(index=False)
-    print("Starting summary analysis")
-    response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.5,
-        )
-    summary = [response['choices'][0]['message']['content']]
-    df_out = pd.DataFrame(summary)
-    print("Finished summary analysis on dataframe")
+    iter = 0
+    for iter in range(tries):
+        try:
+            # Write the prompt for the summary function, using the entire csv file at once
+            # Send the prompt to the chat bot and record the response to the 'summary' list
+            prompt = """Write a paragraph that summarizes the individual summaries in the following csv file. 
+                        """ + df.to_csv(index=False)
+            print("Starting summary analysis")
+            response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.5,
+                )
+            summary = [response['choices'][0]['message']['content']]
+            df_out = pd.DataFrame(summary)
+            print("Finished summary analysis on dataframe")
+
+        # If the AI returns malformed data that is unusable, catch the error and move on
+        except KeyboardInterrupt:
+            print("KeyboardInterrupt recieved, aborting process")
+            sys.exit()
+        except:
+            e = sys.exc_info()
+            if iter < tries - 1:
+                print("\n{} exception in summary for dataframe containing \n{}\n".format(e[0], str(df)))
+                print("Retrying {} out of {} tries\n".format(iter+1, tries))
+                continue
+            else:
+                print("\n{} exception in summary could not be resolved\n".format(e[0]))
+                break
+        break
 
 
     # Save the dataframe as a csv file in a subfolder of the files out folder with the same name as the input file

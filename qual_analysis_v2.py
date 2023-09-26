@@ -22,6 +22,9 @@ if iter_num > 10:
     raise Exception("Number of runs to perform must be less than or equal to 10")
 
 
+tries = 3
+
+
 # Fetch the folder to be operated on from the command line and convert it into a pandas dataframe
 folder_in = sys.argv[1]
 folder_name = os.path.basename(folder_in)
@@ -36,22 +39,26 @@ if not os.path.exists('files_out\\' + path[1]):
     os.mkdir('files_out\\' + path[1])
 if not os.path.exists('files_out\\' + path[1] + '\\' + folder[0]):
     os.mkdir('files_out\\' + path[1] + '\\' + folder[0])
-for f in os.listdir('files_out\\' + path[1] + '\\' + folder[0]):
-    if not f.endswith('.csv'):
-        continue
-    os.remove(os.path.join('files_out\\' + path[1] + '\\' + folder[0], f))
+# for f in os.listdir('files_out\\' + path[1] + '\\' + folder[0]):
+#     if not f.endswith('.csv'):
+#         continue
+#     os.remove(os.path.join('files_out\\' + path[1] + '\\' + folder[0], f))
 
 
 # Read in the files from the input folder and format them
 files_in = []
 for fname in glob.glob(folder_in + '/*.csv'):
-    file_in = pd.read_csv(fname)
-    files_in += [(file_in, fname)]    
+    if not os.path.exists('files_out\\' + fname[9:]):
+        file_in = pd.read_csv(fname)
+        files_in += [(file_in, fname)]    
 print("All files fetched and formatted")
 
 
 # Perform Qualitative Analysis for each file in inputted directory
 for f, name in files_in:
+    print("Starting qualitative analysis on " + name)
+    
+    
     # Remove all strings less than 100 characters from the dataframe and put those strings into their own
     file = f.iloc[:, :1].replace(',|\"|\'|;|:|\.|!|/|’|\(|\)|[|]','', regex=True)
     file_short = file.loc[file[file.columns[0]].str.len()<150]
@@ -70,7 +77,7 @@ for f, name in files_in:
     elif file_len > 0:
         files = [file]
     else:
-        file = []
+        files = []
 
     file_short_len = len(file_short)
     if file_short_len > 10:
@@ -99,82 +106,113 @@ for f, name in files_in:
         sent_num, them_num, file_num = 1, 1, 1
         for x in range(iter_num):
             print("Starting iteration " + str(x+1))
-            try:
-                # Write the prompt for the sentiment analysis function, using the entire csv file at once
-                # Send the prompt to the chat bot and record the response to the 'sentiment' list
-                prompt = """In one word, does each sentence in the following list have a positive, negative, or neutral sentiment. 
-                            The list has {} sentences, so there should be exactly {} words. 
-                            Output should be a comma seperated list: \n""".format(df_init_len, df_init_len) + df_init.to_csv(index=False, header=False)
-                response = openai.ChatCompletion.create(
-                        model="gpt-3.5-turbo",
-                        messages=[
-                            {"role": "user", "content": prompt},
-                        ],
-                        temperature=0.5,
-                    )
-                sentiment = response['choices'][0]['message']['content'].split(',')
-                sentiment = [s.strip(' ') for s in sentiment]
-                sentiment = [x.lower() for x in sentiment]
-        
-                
-                # Save the responses to the pandas dataframe
-                while 'Sentiment {}'.format(sent_num) in df.columns:
-                    sent_num += 1
-                df['Sentiment {}'.format(sent_num)] = sentiment
-                print("Finished sentiment analysis for rows " + str(df.index.values))
+            iter = 0
+            for iter in range(tries):
+                try:
+                    # Write the prompt for the sentiment analysis function, using the entire csv file at once
+                    # Send the prompt to the chat bot and record the response to the 'sentiment' list
+                    prompt = """In one word, does each sentence in the following list have a positive, negative, or neutral sentiment. 
+                                The list has {} sentences, so there should be exactly {} words. 
+                                Output should be a comma seperated list: \n""".format(df_init_len, df_init_len) + df_init.to_csv(index=False, header=False)
+                    response = openai.ChatCompletion.create(
+                            model="gpt-3.5-turbo",
+                            messages=[
+                                {"role": "user", "content": prompt},
+                            ],
+                            temperature=0.5,
+                        )
+                    sentiment = response['choices'][0]['message']['content'].split(',')
+                    sentiment = [s.strip(' ') for s in sentiment]
+                    sentiment = [x.lower() for x in sentiment]
+                    
+                    
+                    # Save the responses to the pandas dataframe
+                    while 'Sentiment {}'.format(sent_num) in df.columns:
+                        sent_num += 1
+                    df['Sentiment {}'.format(sent_num)] = sentiment
+                    print("Finished sentiment analysis for rows " + str(df.index.values))
 
-                # Write the prompt for the themes analysis function, using the entire csv file at once
-                # Send the prompt to the chat bot and record the response to the 'themes' list
-                prompt = """Give the three most common themes in one word for each of the {} sentences in the list below.
-                            Sentences are delimited by new lines. Even if a sentence is short, output exactly three themes.
-                            You should output exactly {} sets of themes. Do not output more or less than {} rows.
-                            Output should be a comma seperated list with exactly three comma seperated themes per row. Follow your instructions exactly: 
-                            \n""".format(df_init_len, df_init_len, df_init_len) + df_init.to_csv(index=False, header=False)
-                response = openai.ChatCompletion.create(
-                        model="gpt-3.5-turbo",
-                        messages=[
-                            {"role": "user", "content": prompt},
-                        ],
-                        temperature=0.5,
-                    )
-                themes = [response['choices'][0]['message']['content']]
-                
+                # If the AI returns malformed data that is unusable, catch the error and move on
+                except KeyboardInterrupt:
+                    print("KeyboardInterrupt recieved, aborting process")
+                    sys.exit()
+                except:
+                    e = sys.exc_info()
+                    if iter < tries - 1:
+                        print("\n{} exception in sentiment analysis for dataframe containing rows \n{}\n".format(e[0], str(df.index.values)))
+                        print("Retrying {} out of {} tries\n".format(iter+1, tries))
+                        continue
+                    else:
+                        print("\n{} exception in sentiment could not be resolved\n".format(e[0]))
+                        break
+                break
 
-                # Reformat the data retrieved from the themes prompt into a format suitable for the dataframe
-                split = []
-                for t in themes:
-                    split += [t.split('\n')]
-                theme1, theme2, theme3 = [], [], []
-                for s in split:
-                    for t in s:
-                        t = t.split(',')
-                        t = [s.strip(' ') for s in t]
-                        t = [x.lower() for x in t]
-                        ts = ['none', 'none', 'none']
-                        if len(t) > 3:
-                            break
-                        for i in range(len(t)):
-                            ts[i] = t[i]
-                        theme1 += [ts[0]]
-                        theme2 += [ts[1]]
-                        theme3 += [ts[2]]
+            
+            iter = 0
+            for iter in range(tries):
+                try:    
+                    # Write the prompt for the themes analysis function, using the entire csv file at once
+                    # Send the prompt to the chat bot and record the response to the 'themes' list
+                    prompt = """Give the three most common themes in one word for each of the {} sentences in the list below.
+                                Sentences are delimited by new lines. Even if a sentence is short, output exactly three themes.
+                                You should output exactly {} sets of themes. Do not output more or less than {} rows.
+                                Output should be a comma seperated list with exactly three comma seperated themes per row. Follow your instructions exactly: 
+                                \n""".format(df_init_len, df_init_len, df_init_len) + df_init.to_csv(index=False, header=False)
+                    response = openai.ChatCompletion.create(
+                            model="gpt-3.5-turbo",
+                            messages=[
+                                {"role": "user", "content": prompt},
+                            ],
+                            temperature=0.5,
+                        )
+                    themes = [response['choices'][0]['message']['content']]
+                    
+
+                    # Reformat the data retrieved from the themes prompt into a format suitable for the dataframe
+                    split = []
+                    for t in themes:
+                        split += [t.split('\n')]
+                    theme1, theme2, theme3 = [], [], []
+                    for s in split:
+                        for t in s:
+                            t = t.split(',')
+                            t = [s.strip(' ') for s in t]
+                            t = [x.lower() for x in t]
+                            ts = ['none', 'none', 'none']
+                            if len(t) > 3:
+                                break
+                            for i in range(len(t)):
+                                ts[i] = t[i]
+                            theme1 += [ts[0]]
+                            theme2 += [ts[1]]
+                            theme3 += [ts[2]]
 
 
-                # Save the responses to the pandas dataframe
-                while 'Theme {}'.format(them_num) in df.columns:
+                    # Save the responses to the pandas dataframe
+                    while 'Theme {}'.format(them_num) in df.columns:
+                        them_num += 1
+                    df['Theme {}'.format(them_num)] = theme1
                     them_num += 1
-                df['Theme {}'.format(them_num)] = theme1
-                them_num += 1
-                df['Theme {}'.format(them_num)] = theme2
-                them_num += 1
-                df['Theme {}'.format(them_num)] = theme3
-                print("Finished theme analysis for rows " + str(df.index.values))
+                    df['Theme {}'.format(them_num)] = theme2
+                    them_num += 1
+                    df['Theme {}'.format(them_num)] = theme3
+                    print("Finished theme analysis for rows " + str(df.index.values))
 
 
-            # If the AI returns malformed data that is unusable, catch the error and move on
-            except ValueError:
-                print("\nValueError exception for dataframe containing rows \n" + str(df.index.values) + "\n")
-                continue
+                # If the AI returns malformed data that is unusable, catch the error and move on
+                except KeyboardInterrupt:
+                    print("KeyboardInterrupt recieved, aborting process")
+                    sys.exit()
+                except:
+                    e = sys.exc_info()
+                    if iter < tries - 1:
+                        print("\n{} exception in theme analysis for dataframe containing rows \n{}\n".format(e[0], str(df.index.values)))
+                        print("Retrying {} out of {} tries\n".format(iter+1, tries))
+                        continue
+                    else:
+                        print("\n{} exception in theme analysis could not be resolved\n".format(e[0]))
+                        break
+                break
         dfs_out.append(df)
 
 
@@ -190,26 +228,42 @@ for f, name in files_in:
     df_out = df_out[headers]
     print("Merged all output dataframes back into one dataframe")
 
+    iter = 0
+    for iter in range(tries):
+        try:
+            # Write the prompt for the summary function, using the entire csv file at once
+            # Send the prompt to the chat bot and record the response to the 'summary' list
+            prompt = """Write a paragraph that summarizes the data in the following csv file. 
+                        Specifically, you should answer with respect to the original question, {} 
+                        Make certain to address both the themes of the responses and the overall sentiment.
+                        """.format(df_out.columns[0]) + df_out.to_csv(index=False)
+            response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.5,
+                )
+            summary = [response['choices'][0]['message']['content']]
 
-    # Write the prompt for the summary function, using the entire csv file at once
-    # Send the prompt to the chat bot and record the response to the 'summary' list
-    prompt = """Write a paragraph that summarizes the data in the following csv file. 
-                Specifically, you should answer with respect to the original question, {} 
-                Make certain to address both the themes of the responses and the overall sentiment.
-                """.format(df_out.columns[0]) + df_out.to_csv(index=False)
-    response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.5,
-        )
-    summary = [response['choices'][0]['message']['content']]
 
+            # Save the responses to the pandas dataframe 
+            df_out['Summary'] = pd.Series(summary)
+            print("Finished summary analysis on dataframe")
+        except KeyboardInterrupt:
+            print("KeyboardInterrupt recieved, aborting process")
+            sys.exit()
+        except:
+            e = sys.exc_info()
+            if iter < tries - 1:
+                print("\n{} exception in summary for dataframe containing \n{}\n".format(e[0], str(df)))
+                print("Retrying {} out of {} tries\n".format(iter+1, tries))
+                continue
+            else:
+                print("\n{} exception in summary could not be resolved\n".format(e[0]))
+                break
+        break
 
-    # Save the responses to the pandas dataframe 
-    df_out['Summary'] = pd.Series(summary)
-    print("Finished summary analysis on dataframe")
 
 
     # Find the percentage of responses that share a sentiment value and add those percentage to the dataframe
@@ -244,5 +298,5 @@ for f, name in files_in:
     file_out = 'files_out\\' + name[9:]
     df_out.iloc[:, :1] = f.iloc[:, :1]
     df_out.to_csv(file_out)
-    print("File finished, output saved to " + file_out)
+    print("File finished, output saved to " + file_out + "\n")
 print("Run completed")
