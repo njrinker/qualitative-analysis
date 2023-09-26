@@ -39,17 +39,17 @@ if not os.path.exists('files_out\\' + path[1]):
     os.mkdir('files_out\\' + path[1])
 if not os.path.exists('files_out\\' + path[1] + '\\' + folder[0]):
     os.mkdir('files_out\\' + path[1] + '\\' + folder[0])
-# for f in os.listdir('files_out\\' + path[1] + '\\' + folder[0]):
-#     if not f.endswith('.csv'):
-#         continue
-#     os.remove(os.path.join('files_out\\' + path[1] + '\\' + folder[0], f))
 
 
 # Read in the files from the input folder and format them
 files_in = []
 for fname in glob.glob(folder_in + '/*.csv'):
     if not os.path.exists('files_out\\' + fname[9:]):
-        file_in = pd.read_csv(fname)
+        try:
+            file_in = pd.read_csv(fname)
+        except UnicodeDecodeError:
+            print("UnicodeDecodeError recieved, reattempting {} in ANSI".format(fname))
+            file_in = pd.read_csv(fname, encoding='ansi')
         files_in += [(file_in, fname)]    
 print("All files fetched and formatted")
 
