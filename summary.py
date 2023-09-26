@@ -86,7 +86,7 @@ def main():
 
 
     # Save the dataframe as a csv file in a subfolder of the files out folder with the same name as the input file
-    file_out = 'summaries\\' + path[1] + '\\' + path[2] + '\\' + path[2] + '.csv'
+    file_out = 'summaries\\' + path[1] + '\\' + path[2] + '\\' + path[2] + ' Output.csv'
     df_out.to_csv(file_out)
     print("File finished, output saved to " + file_out)
 

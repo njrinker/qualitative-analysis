@@ -50,9 +50,9 @@ for fname in glob.glob(folder_in + '/*.csv'):
         except UnicodeDecodeError:
             print("UnicodeDecodeError recieved, reattempting {} in ANSI".format(fname))
             file_in = pd.read_csv(fname, encoding='ansi')
-        files_in += [(file_in, fname)]    
+        if not file_in.empty:
+            files_in += [(file_in, fname)]  
 print("All files fetched and formatted")
-
 
 # Perform Qualitative Analysis for each file in inputted directory
 for f, name in files_in:
@@ -154,7 +154,7 @@ for f, name in files_in:
                     # Write the prompt for the themes analysis function, using the entire csv file at once
                     # Send the prompt to the chat bot and record the response to the 'themes' list
                     prompt = """Give the single most common theme in one word for each of the {} sentences in the list below.
-                                Sentences are delimited by new lines. 
+                                Sentences are delimited by new lines. Do not index your answers.
                                 You should output exactly {} sets of themes. Do not output more or less than {} rows.
                                 Follow your instructions exactly: 
                                 \n""".format(df_init_len, df_init_len, df_init_len) + df_init.to_csv(index=False, header=False)
@@ -166,7 +166,7 @@ for f, name in files_in:
                             temperature=0.5,
                         )
                     themes = [response['choices'][0]['message']['content']]
-                    
+
 
                     # Reformat the data retrieved from the themes prompt into a format suitable for the dataframe
                     split = []
@@ -178,6 +178,8 @@ for f, name in files_in:
                             t = t.split(',')
                             t = [s.strip(' ') for s in t]
                             t = [x.lower() for x in t]
+                            if t[0][0].isnumeric():
+                                t[0] = t[0][3:]
                             ts = ['none']
                             if len(t) > 3:
                                 break
