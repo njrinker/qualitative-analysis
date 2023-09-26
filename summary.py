@@ -76,11 +76,11 @@ def main():
         except:
             e = sys.exc_info()
             if iter < tries - 1:
-                print("\n{} exception in summary for dataframe containing \n{}\n".format(e[0], str(df)))
+                print("\n{} exception in summary for dataframe containing \n{}\n".format(e[1], str(df)))
                 print("Retrying {} out of {} tries\n".format(iter+1, tries))
                 continue
             else:
-                print("\n{} exception in summary could not be resolved\n".format(e[0]))
+                print("\n{} exception in summary could not be resolved\n".format(e[1]))
                 break
         break
 
